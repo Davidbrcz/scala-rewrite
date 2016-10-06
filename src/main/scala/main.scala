@@ -198,22 +198,16 @@ object Outermost {
 object Main{
   def main(args: Array[String]) = {
 
-    // val expr = Add(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
-     val expr = Multiply(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
+     val expr = Add(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
+    // val expr = Multiply(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
     val mapping = HashMap("a" -> 2,"b" ->4)
     println(expr)
-val ret = Outermost(HandleRef)(expr,mapping)
-  //   val ret = Outermost(HandleRef)(expr,mapping)
-  //   ret match {
-  //     case Some(e) => {
-  //       println(e)
-  //       val ret2 = Outermost(EvalMultiply)(e,mapping)
-  //       ret2 match {
-  //         case Some(e2) => println(e2)
-  //         case None => println("faillure")
-  //       }
-  //     }
-  //     case None => println("faillure 1")
-  //   }
-  // }
+    val ret = Sequence(Outermost(HandleRef),
+      Sequence(Outermost(EvalMultiply),
+        Outermost(EvalAdd)))(expr,mapping)
+    ret match {
+      case Some(f) => println(f)
+      case None => println("faillure 1")
+    }
+  }
 }
