@@ -28,6 +28,32 @@ object HandleRef extends GLOBAL.Strategy {
   }
 }
 
+object EvalAdd extends GLOBAL.Strategy {
+  def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
+    expr match {
+      case Add(l,r) =>
+      (l,r) match {
+        case (MyInt(lv),MyInt(rv)) => Some(MyInt(lv+rv))
+        case _ => None
+      }
+      case _ => None
+    }
+  }
+}
+
+object EvalMultiply extends GLOBAL.Strategy {
+  def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
+    expr match{
+      case Multiply(l,r) =>
+        (l,r) match {
+          case (MyInt(lv),MyInt(rv)) => Some(MyInt(lv*rv))
+          case _ => None
+        }
+      case _ => None
+    }    
+  }
+}
+
 object Sequence {
   def apply
     (s1 : GLOBAL.Strategy,s2 : GLOBAL.Strategy) 
@@ -81,10 +107,22 @@ object Repeat {
 object All {
   //TODO : do the visiting ???
   def apply(s1 : GLOBAL.Strategy)
-    (expr : IntExpr,mapping :HashMap[String,Int]) = {
+    (expr : IntExpr,mapping :HashMap[String,Int]) : Option[IntExpr] = {
+
     expr match {
       case Add(l,r) => {
-        All(s1)(l,mapping)
+        val new_l = s1(l,mapping).getOrElse(return None)
+        val new_r = s1(r,mapping).getOrElse(return None)
+        Some(Add(new_l,new_r))
+      } // end case Add
+
+      case Multiply(l,r) => {
+        val new_l = s1(l,mapping).getOrElse(return None)
+        val new_r = s1(r,mapping).getOrElse(return None)
+        Some(Multiply(new_l,new_r))
+      } // end case Multiply
+
+      case _ => Some(expr)
     }
   }
 }
@@ -92,7 +130,32 @@ object All {
 object One {
   //TODO : do the visiting too and stop on first success ???
   def apply(s1 : GLOBAL.Strategy)
-    (expr : IntExpr,mapping :HashMap[String,Int]) = ???
+    (expr : IntExpr,mapping :HashMap[String,Int]) = {
+    expr match {
+      case Add(l,r) => {
+        lazy val l_transform = s1(l,mapping)
+        lazy val r_transform = s1(r,mapping)
+          (l_transform,r_transform) match {
+          case (Some(new_l),_) => Some(Add(new_l,r))
+          case (None,Some(new_r)) => Some(Add(l,new_r))
+          case _ => None
+        }
+      } // end case Add
+
+      case Multiply(l,r) => {
+        lazy val l_transform = s1(l,mapping)
+        lazy val r_transform = s1(r,mapping)
+          (l_transform,r_transform) match {
+          case (Some(new_l),_) => Some(Multiply(new_l,r))
+          case (None,Some(new_r)) => Some(Multiply(l,new_r))
+          case _ => None
+        }
+
+      } // end case Multiply
+
+      case _ => None
+    }
+  }
 }
 
 
@@ -135,10 +198,22 @@ object Outermost {
 object Main{
   def main(args: Array[String]) = {
 
-    val expr = Add(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
+    // val expr = Add(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
+     val expr = Multiply(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
     val mapping = HashMap("a" -> 2,"b" ->4)
     println(expr)
-    val ret = Outermost(HandleRef)(expr,mapping)
-    println(ret)
-  }
+val ret = Outermost(HandleRef)(expr,mapping)
+  //   val ret = Outermost(HandleRef)(expr,mapping)
+  //   ret match {
+  //     case Some(e) => {
+  //       println(e)
+  //       val ret2 = Outermost(EvalMultiply)(e,mapping)
+  //       ret2 match {
+  //         case Some(e2) => println(e2)
+  //         case None => println("faillure")
+  //       }
+  //     }
+  //     case None => println("faillure 1")
+  //   }
+  // }
 }
