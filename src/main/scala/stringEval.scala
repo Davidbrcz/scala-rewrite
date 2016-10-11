@@ -6,7 +6,7 @@ final case class MultiplyS(l : Int,r : StringExpr) extends StringExpr;
 final case class VarRefString(name : String) extends StringExpr;
 final case class StringRef(s : String) extends StringExpr;
 
-case object HandleRefS extends GLOBAL.Strategy[StringExpr,String] {
+case object HandleRefS extends GLOBAL.Strategy[StringExpr,HashMap[String,String]] {
   override def apply (expr : StringExpr,mapping :HashMap[String,String]) = {
     expr match{
       case VarRefString(name) => Some(StringRef(mapping(name)))
@@ -15,7 +15,7 @@ case object HandleRefS extends GLOBAL.Strategy[StringExpr,String] {
   }
 }
 
-case object EvalAddS extends GLOBAL.Strategy[StringExpr,String] {
+case object EvalAddS extends GLOBAL.Strategy[StringExpr,HashMap[String,String]] {
   override def apply (expr : StringExpr,mapping :HashMap[String,String]) = {
     expr match {
       case AddS(l,r) =>
@@ -28,7 +28,7 @@ case object EvalAddS extends GLOBAL.Strategy[StringExpr,String] {
   }
 }
 
-case object EvalMultiplyS extends GLOBAL.Strategy[StringExpr,String] {
+case object EvalMultiplyS extends GLOBAL.Strategy[StringExpr,HashMap[String,String]] {
   override def  apply (expr : StringExpr,mapping :HashMap[String,String]) = {
     expr match{
       case MultiplyS(n,o) =>
@@ -41,8 +41,8 @@ case object EvalMultiplyS extends GLOBAL.Strategy[StringExpr,String] {
   }
 }
 
-object AllStr  extends AllT[StringExpr,String] {
-  override def apply(s1 : GLOBAL.Strategy[StringExpr,String])
+object AllStr  extends AllT[StringExpr,HashMap[String,String]] {
+  override def apply(s1 : GLOBAL.Strategy[StringExpr,HashMap[String,String]])
     (expr : StringExpr,mapping :HashMap[String,String]) : Option[StringExpr]={
 
     expr match {
@@ -63,8 +63,8 @@ object AllStr  extends AllT[StringExpr,String] {
   }
 }
 
-object  OneStr extends OneT[StringExpr,String] {
-  override def apply(s1 : GLOBAL.Strategy[StringExpr,String])
+object  OneStr extends OneT[StringExpr,HashMap[String,String]] {
+  override def apply(s1 : GLOBAL.Strategy[StringExpr,HashMap[String,String]])
     (expr : StringExpr,mapping :HashMap[String,String]):Option[StringExpr] = {
     expr match {
       case AddS(l,r) => {
