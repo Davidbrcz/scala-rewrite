@@ -9,17 +9,23 @@ final case class VarRef(name : String) extends IntExpr;
 final case class MyRandom(low : Int, up : Int) extends IntExpr;
 final case class MyInt(i : Int) extends IntExpr;
 
+trait StringExpr;
+final case class AddS(l : StringExpr,r : StringExpr) extends StringExpr;
+final case class MultiplyS(l : Int,r : String) extends StringExpr;
+final case class VarRefString(name : String) extends StringExpr;
+
+
 object GLOBAL{
-  type Strategy[T] = Function2[T,HashMap[String,Int],Option[T]]
+  type Strategy[T,-V] = Function2[T,HashMap[String,V],Option[T]]
 }
 
-final case class Identity[T]() extends GLOBAL.Strategy[T] {
-  def apply(expr : T,mapping :HashMap[String,Int]) = {
+final case class Identity[T,V]() extends GLOBAL.Strategy[T,V] {
+  def apply(expr : T,mapping :HashMap[String,V]) = {
     Some(expr)
   }
 }
 
-case object HandleRef extends GLOBAL.Strategy[IntExpr] {
+case object HandleRef extends GLOBAL.Strategy[IntExpr,Int] {
   def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match{
       case VarRef(name) => Some(MyInt(mapping(name)))
@@ -28,7 +34,7 @@ case object HandleRef extends GLOBAL.Strategy[IntExpr] {
   }
 }
 
-case object EvalAdd extends GLOBAL.Strategy[IntExpr] {
+case object EvalAdd extends GLOBAL.Strategy[IntExpr,Int] {
   def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match {
       case Add(l,r) =>
@@ -41,7 +47,7 @@ case object EvalAdd extends GLOBAL.Strategy[IntExpr] {
   }
 }
 
-case object EvalMultiply extends GLOBAL.Strategy[IntExpr] {
+case object EvalMultiply extends GLOBAL.Strategy[IntExpr,Int] {
   def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match{
       case Multiply(l,r) =>
@@ -55,9 +61,9 @@ case object EvalMultiply extends GLOBAL.Strategy[IntExpr] {
 }
 
 object Sequence {
-  def apply[T]
-    (s1 : GLOBAL.Strategy[T],s2 : GLOBAL.Strategy[T]) 
-    (expr : T,mapping :HashMap[String,Int])  = {
+  def apply[T,V]
+    (s1 : GLOBAL.Strategy[T,V],s2 : GLOBAL.Strategy[T,V]) 
+    (expr : T,mapping :HashMap[String,V])  = {
     s1(expr,mapping) match {
       case Some(ret) => s2(ret,mapping)
       case None => None
@@ -67,8 +73,8 @@ object Sequence {
 
 
 object Choice {
-  def apply[T](s1 : GLOBAL.Strategy[T],s2 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int]) = {
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V],s2 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V]) = {
     s1(expr,mapping) match {
       case attempt1 : Some[T] => attempt1
       case None => s2(expr,mapping) match {
@@ -80,8 +86,8 @@ object Choice {
 }
 
 object Not{
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int]) = {
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V]) = {
     s1(expr,mapping) match {
       case Some(_) => None
       case None => Some(expr)
@@ -90,27 +96,27 @@ object Not{
 }
 
 object Try{
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping : HashMap[String,Int]) = {
-    val id = (new Identity[T]).apply(_,_)
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping : HashMap[String,V]) = {
+    val id = (new Identity[T,V]).apply(_,_)
     Choice(s1, id)(expr,mapping)
   }
 }
 
 object Repeat {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T ,mapping :HashMap[String,Int]) : Option[T] ={    
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T ,mapping :HashMap[String,V]) : Option[T] ={    
     Try(Sequence(s1, Repeat(s1) _ ) _ )(expr,mapping)
   }
 }
 
-trait AllT[T]{
-  def apply(s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int]) : Option[T]
+trait AllT[T,V]{
+  def apply(s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V]) : Option[T]
 }
 
-object AllInt  extends AllT[IntExpr] {
-  override def apply(s1 : GLOBAL.Strategy[IntExpr])
+object AllInt  extends AllT[IntExpr,Int] {
+  override def apply(s1 : GLOBAL.Strategy[IntExpr,Int])
     (expr : IntExpr,mapping :HashMap[String,Int]) : Option[IntExpr]={
 
     expr match {
@@ -131,13 +137,13 @@ object AllInt  extends AllT[IntExpr] {
   }
 }
 
-trait OneT[T]{
-  def apply(s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int]) : Option[T]
+trait OneT[T,V]{
+  def apply(s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V]) : Option[T]
 }
 
-object  OneInt extends OneT[IntExpr] {
-  override def apply(s1 : GLOBAL.Strategy[IntExpr])
+object  OneInt extends OneT[IntExpr,Int] {
+  override def apply(s1 : GLOBAL.Strategy[IntExpr,Int])
     (expr : IntExpr,mapping :HashMap[String,Int]):Option[IntExpr] = {
     expr match {
       case Add(l,r) => {
@@ -169,37 +175,37 @@ object  OneInt extends OneT[IntExpr] {
 
 
 object BottomUp {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T , mapping :HashMap[String,Int])(implicit theAll : AllT[T]) : Option[T] = {
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T , mapping :HashMap[String,V])(implicit theAll : AllT[T,V]) : Option[T] = {
     Sequence(theAll(BottomUp(s1) _) _,s1)(expr,mapping)
   }
 }
 object TopDown {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T ,mapping :HashMap[String,Int])(implicit theAll : AllT[T]) : Option[T] = {
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T ,mapping :HashMap[String,V])(implicit theAll : AllT[T,V]) : Option[T] = {
     Sequence(s1, theAll(TopDown(s1) _) _)(expr,mapping)
   }
 }
 object OnceBottomUp {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int])(implicit theOne : OneT[T]) : Option[T] = {
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V])(implicit theOne : OneT[T,V]) : Option[T] = {
     Choice(theOne(OnceBottomUp(s1) _) _,s1)(expr,mapping)
   }
 }
 object OnceTopDown {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int])(implicit theOne : OneT[T]) : Option[T] = {
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V])(implicit theOne : OneT[T,V]) : Option[T] = {
     Choice(s1, theOne(OnceTopDown(s1) _) _)(expr,mapping)
   }
 }
 object Innermost {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int])(implicit theOne : OneT[T]) =
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V])(implicit theOne : OneT[T,V]) =
     Repeat(OnceBottomUp(s1) _ )(expr,mapping)
 }
 object Outermost {
-  def apply[T](s1 : GLOBAL.Strategy[T])
-    (expr : T,mapping :HashMap[String,Int])(implicit theOne : OneT[T]) =
+  def apply[T,V](s1 : GLOBAL.Strategy[T,V])
+    (expr : T,mapping :HashMap[String,V])(implicit theOne : OneT[T,V]) =
     Repeat(OnceTopDown(s1) _)(expr,mapping)
 }
 
