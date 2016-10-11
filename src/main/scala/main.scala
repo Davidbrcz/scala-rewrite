@@ -9,24 +9,18 @@ final case class VarRef(name : String) extends IntExpr;
 final case class MyRandom(low : Int, up : Int) extends IntExpr;
 final case class MyInt(i : Int) extends IntExpr;
 
-trait StringExpr;
-final case class AddS(l : StringExpr,r : StringExpr) extends StringExpr;
-final case class MultiplyS(l : Int,r : String) extends StringExpr;
-final case class VarRefString(name : String) extends StringExpr;
-
-
 object GLOBAL{
   type Strategy[T,-V] = Function2[T,HashMap[String,V],Option[T]]
 }
 
 final case class Identity[T,V]() extends GLOBAL.Strategy[T,V] {
-  def apply(expr : T,mapping :HashMap[String,V]) = {
+  override def apply(expr : T,mapping :HashMap[String,V]) = {
     Some(expr)
   }
 }
 
 case object HandleRef extends GLOBAL.Strategy[IntExpr,Int] {
-  def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
+  override def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match{
       case VarRef(name) => Some(MyInt(mapping(name)))
       case _ => None
@@ -35,7 +29,7 @@ case object HandleRef extends GLOBAL.Strategy[IntExpr,Int] {
 }
 
 case object EvalAdd extends GLOBAL.Strategy[IntExpr,Int] {
-  def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
+  override def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match {
       case Add(l,r) =>
       (l,r) match {
@@ -48,7 +42,7 @@ case object EvalAdd extends GLOBAL.Strategy[IntExpr,Int] {
 }
 
 case object EvalMultiply extends GLOBAL.Strategy[IntExpr,Int] {
-  def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
+  override def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match{
       case Multiply(l,r) =>
         (l,r) match {
@@ -212,19 +206,38 @@ object Outermost {
 object Main{
   def main(args: Array[String]) = {
 
-     val expr = Add(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
-
+    val expr = Add(Multiply(VarRef("a"),MyInt(5)),VarRef("b"))
     val mapping = HashMap("a" -> 2,"b" ->4)
     println(expr)
     implicit val oi = OneInt
     implicit val al = AllInt
     
-    val ret = Sequence(Outermost(HandleRef),
-      Sequence(Outermost(EvalMultiply),
-        Outermost(EvalAdd)))(expr,mapping)
+    val fct = Sequence(Outermost(HandleRef),
+                       Sequence(Innermost(EvalMultiply),Innermost(EvalAdd))
+    ) _
+
+    val ret = fct(expr,mapping)
+
     ret match {
       case Some(f) => println(f)
       case None => println("faillure 1")
+    }
+
+    val exprStr = MultiplyS(5,AddS(VarRefString("z"),VarRefString("zz")))
+    val mappingStr = HashMap("z" -> "PIPO","zz" ->"TEST")
+    println(exprStr)
+    implicit val oistr = OneStr
+    implicit val alstr = AllStr
+
+    
+    val fct2 = Sequence(Outermost(HandleRefS),
+      Sequence(Innermost(EvalMultiplyS),Innermost(EvalAddS))
+    ) _
+
+    val ret2 = fct2(exprStr,mappingStr)
+    ret2 match {
+      case Some(f) => println(f)
+      case None => println("faillure 2")
     }
   }
 }
