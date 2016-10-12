@@ -31,11 +31,7 @@ case object HandleRef extends GLOBAL.Strategy[IntExpr,HashMap[String,Int]] {
 case object EvalAdd extends GLOBAL.Strategy[IntExpr,HashMap[String,Int]] {
   override def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match {
-      case Add(l,r) =>
-      (l,r) match {
-        case (MyInt(lv),MyInt(rv)) => Some(MyInt(lv+rv))
-        case _ => None
-      }
+      case Add(MyInt(lv),MyInt(rv)) => Some(MyInt(lv+rv))
       case _ => None
     }
   }
@@ -44,11 +40,7 @@ case object EvalAdd extends GLOBAL.Strategy[IntExpr,HashMap[String,Int]] {
 case object EvalMultiply extends GLOBAL.Strategy[IntExpr,HashMap[String,Int]] {
   override def apply (expr : IntExpr,mapping :HashMap[String,Int]) = {
     expr match{
-      case Multiply(l,r) =>
-        (l,r) match {
-          case (MyInt(lv),MyInt(rv)) => Some(MyInt(lv*rv))
-          case _ => None
-        }
+      case Multiply(MyInt(lv),MyInt(rv)) => Some(MyInt(lv*rv))
       case _ => None
     }    
   }
